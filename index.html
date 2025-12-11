@@ -1,59 +1,174 @@
-<div>Teachable Machine Image Model</div>
-<button type="button" onclick="init()">Start</button>
-<div id="webcam-container"></div>
-<div id="label-container"></div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Posture Checker</title>
+
+<!-- Medical Blue/White Theme -->
+<style>
+    body {
+        background: #f5fbff;
+        font-family: Arial, sans-serif;
+        color: #1e3a5f;
+        text-align: center;
+        padding: 20px;
+    }
+
+    h1 {
+        color: #1a4c7c;
+        font-size: 2rem;
+        margin-bottom: 5px;
+    }
+
+    h2 {
+        color: #2c5e8a;
+        margin-top: 30px;
+    }
+
+    #webcam-container {
+        margin-top: 20px;
+        border: 3px solid #b5d9f5;
+        border-radius: 12px;
+        display: inline-block;
+        padding: 10px;
+        background: white;
+    }
+
+    #label-container div {
+        margin: 8px;
+        font-size: 1.1rem;
+        padding: 6px 12px;
+        border-radius: 8px;
+        background: #e3f3ff;
+    }
+
+    button {
+        background: #1a73e8;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+
+    button:hover {
+        background: #145bb5;
+    }
+
+    #statusBox {
+        margin-top: 20px;
+        padding: 15px;
+        font-size: 1.3rem;
+        font-weight: bold;
+        border-radius: 10px;
+        display: inline-block;
+        background: #fff;
+        border: 2px solid #b5d9f5;
+    }
+</style>
+
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-<script type="text/javascript">
-    // More API functions here:
-    // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/image
 
-    // the link to your model provided by Teachable Machine export panel
+</head>
+<body>
+
+<h1>Posture Checker</h1>
+<p>A simple tool that uses a Teachable Machine model to tell you if your posture is good, bad, or horrible.</p>
+
+<h2>How It Works</h2>
+<p>
+    This project analyzes your posture in real time using your webcam.
+    It classifies your posture into three categories:
+</p>
+<ul style="text-align:left; margin: 0 auto; max-width: 420px; color: #2c5e8a;">
+    <li><strong>Good</strong> – straight back, balanced posture</li>
+    <li><strong>Bad</strong> – slight slouching or leaning</li>
+    <li><strong>Horrible</strong> – major slumping or bending</li>
+</ul>
+
+<p>
+    It helps students, office workers, and anyone who sits a lot become more aware of their posture.
+</p>
+
+<button type="button" onclick="init()">Start Posture Checker</button>
+
+<div id="webcam-container"></div>
+<div id="label-container"></div>
+
+<div id="statusBox">Posture status will appear here.</div>
+
+<script type="text/javascript">
     const URL = "./my_model/";
 
     let model, webcam, labelContainer, maxPredictions;
 
-    // Load the image model and setup the webcam
     async function init() {
         const modelURL = URL + "model.json";
         const metadataURL = URL + "metadata.json";
 
-        // load the model and metadata
-        // Refer to tmImage.loadFromFiles() in the API to support files from a file picker
-        // or files from your local hard drive
-        // Note: the pose library adds "tmImage" object to your window (window.tmImage)
         model = await tmImage.load(modelURL, metadataURL);
         maxPredictions = model.getTotalClasses();
 
-        // Convenience function to setup a webcam
-        const flip = true; // whether to flip the webcam
-        webcam = new tmImage.Webcam(200, 200, flip); // width, height, flip
-        await webcam.setup(); // request access to the webcam
+        const flip = true;
+        webcam = new tmImage.Webcam(200, 200, flip);
+        await webcam.setup();
         await webcam.play();
         window.requestAnimationFrame(loop);
 
-        // append elements to the DOM
         document.getElementById("webcam-container").appendChild(webcam.canvas);
         labelContainer = document.getElementById("label-container");
-        for (let i = 0; i < maxPredictions; i++) { // and class labels
+
+        for (let i = 0; i < maxPredictions; i++) {
             labelContainer.appendChild(document.createElement("div"));
         }
     }
 
     async function loop() {
-        webcam.update(); // update the webcam frame
+        webcam.update();
         await predict();
         window.requestAnimationFrame(loop);
     }
 
-    // run the webcam image through the image model
     async function predict() {
-        // predict can take in an image, video or canvas html element
         const prediction = await model.predict(webcam.canvas);
+
+        let statusText = "";
+        let highestProb = 0;
+        let topClass = "";
+
         for (let i = 0; i < maxPredictions; i++) {
             const classPrediction =
                 prediction[i].className + ": " + prediction[i].probability.toFixed(2);
             labelContainer.childNodes[i].innerHTML = classPrediction;
+
+            if (prediction[i].probability > highestProb) {
+                highestProb = prediction[i].probability;
+                topClass = prediction[i].className;
+            }
+        }
+
+        // Automatically display posture feedback
+        const statusBox = document.getElementById("statusBox");
+
+        if (topClass === "Good") {
+            statusBox.innerHTML = "Your posture looks GOOD! 👍 Keep it up!";
+            statusBox.style.background = "#d4f8e1";
+            statusBox.style.borderColor = "#8cd9a5";
+        } else if (topClass === "Bad") {
+            statusBox.innerHTML = "Your posture is BAD. Try sitting up straighter.";
+            statusBox.style.background = "#fff7d1";
+            statusBox.style.borderColor = "#f0c55c";
+        } else if (topClass === "Horrible") {
+            statusBox.innerHTML = "Your posture is HORRIBLE! ⚠ Straighten up immediately.";
+            statusBox.style.background = "#ffe0e0";
+            statusBox.style.borderColor = "#ff8a8a";
         }
     }
 </script>
+
+</body>
+</html>
